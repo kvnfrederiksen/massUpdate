@@ -9,14 +9,20 @@ import android.arch.lifecycle.MutableLiveData;
  * Allows for a string to be sent to the UI to update the user on the progress of background processes
  */
 
-public class DataRepository {
+public class DataRepository {//start class
+
     private final MutableLiveData<String> data = new MutableLiveData<>();
 
-    public LiveData<String> getMyData() {
-        return data;
-    }
+    public LiveData<String> getMyData() {//start getMyData
 
-    public void updateText(String text) {
+        return data;
+
+    }//end getMyData
+
+    public void updateText(String text) {//start getMyData
+
         data.setValue(text);
-    }
-}
+
+    }//end getMyData
+
+}//end class

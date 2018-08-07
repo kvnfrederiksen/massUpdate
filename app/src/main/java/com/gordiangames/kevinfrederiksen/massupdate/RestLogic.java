@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 /**
  * Created by Kevin Frederiksen on 2/3/2018.
  */
-public class RestLogic extends AsyncTask<FieldPopulation, Void, Void> {
+public class RestLogic extends AsyncTask<FieldPopulation, Void, Void> {//start class
 
     Pattern nonAppendPattern = Pattern.compile("id(\"\\:)(.*?)([\\}\\,])");
     Pattern space = Pattern.compile("\\s");
@@ -24,16 +24,21 @@ public class RestLogic extends AsyncTask<FieldPopulation, Void, Void> {
     Activity activity;
     MyApplication app;
 
-    public RestLogic(Activity activity, MyApplication app){
+    public RestLogic(Activity activity, MyApplication app) {//start constructor
+
         this.activity = activity;
         this.app = app;
-    }
 
-    protected Void doInBackground(FieldPopulation... fp){
-        init(fp[0]);return null;
-    }
+    }//end constructor
 
-    protected void init(FieldPopulation fp){
+    protected Void doInBackground(FieldPopulation... fp){//start doInBackground
+
+        init(fp[0]);
+        return null;
+
+    }//end doInBackground
+
+    protected void init(FieldPopulation fp) {//start init
 
         RestTemplate restTemplate = fp.getRestTemplate();
         String query = fp.getQuery();
@@ -43,8 +48,6 @@ public class RestLogic extends AsyncTask<FieldPopulation, Void, Void> {
         String entity = fp.getEntity();
         String value = fp.getValue();
         int iValue = 0;
-        if(fp.getSelection()&&fp.getiValue()!=0)
-            iValue = fp.getiValue();
         int start = 0;
         int progress = 0;
         int total = 0;
@@ -52,48 +55,83 @@ public class RestLogic extends AsyncTask<FieldPopulation, Void, Void> {
         boolean append = fp.getAppend();
         boolean toMany = toManyCheck(fp, field);
         boolean toOne = toOneCheck(fp,field);
+        DataRepository dataRepository = app.getDataRepository();
+
+        //assigns iValue a non-zero value, should this be necessary for the call
+        if(fp.getSelection()&&fp.getiValue()!=0) {//start if
+
+            iValue = fp.getiValue();
+
+        }//end if
 
         String url = restUrl + "search/" + entity + "?fields=id";
+
         //if the user wants to add onto the value that is already there and the field isn't a TO_MANY, or if the exact opposite is true,
         //the response will need to include the current value of the field
-        if((append&&!toMany)||(!append&&toMany))
+        if((append&&!toMany)||(!append&&toMany)) {//start if
+
             url +=","+field;
-        DataRepository dataRepository = app.getDataRepository();
+
+        }//end if
+
         String response = "";
 
-        while (count) {
+        while (count) {//start while1
 
             url += "&start=" + start + "&count=500&query=" + query + "&BhRestToken=" + token;
 
             //once again, there wasn't a generalized class to use, so I had to pull the response as a String for pattern matching
-            try{
-            response = restTemplate.getForObject(url, String.class);} catch( HttpClientErrorException e){
-                activity.runOnUiThread(new Runnable(){
+            try {//start try
+
+                response = restTemplate.getForObject(url, String.class);
+
+            }//end try
+            catch( HttpClientErrorException e){//start catch
+
+                activity.runOnUiThread(new Runnable() {//start runOnUiThread
+
                     @Override
-                    public void run(){
+                    public void run(){//start run
+
                         Toast.makeText
                                 (activity.getApplicationContext(), "Oops! Something's wrong-o, Bob-o!", Toast.LENGTH_LONG)
                                 .show();
-                    }
-                });}
+
+                    }//end run
+
+                });//end runOnUiThread
+
+            }//end catch
+
             m = space.matcher(response);
             response = m.replaceAll("");
 
             //looks for the total number of records that will be parsed, so the user has an idea
             Pattern totalPattern = Pattern.compile("al(\"\\:)(.*?)(\\,\")");
             m = totalPattern.matcher(response);
-            while(m.find()){
+
+            while(m.find()) {//start while2
+
                 total = Integer.parseInt(m.group(2));
                 int i = total;
-                if(progress < 500)
-                    activity.runOnUiThread(new Runnable(){
+                if(progress < 500) {//start if1
+
+                    activity.runOnUiThread(new Runnable() {//start runOnUiThread
+
                         @Override
-                        public void run(){
+                        public void run() {//start run
+
                             dataRepository.updateText("0/" + i);
-                        }
-                    });
-                break;
-            }
+
+                        }//end run
+
+                    });//end runOnUiThread
+
+                    break;
+
+                }//end if1
+
+            }//end while2
 
             //update to a non-selection field that doesn't add on to the current value
             if(!append&&!toMany&&!toOne)

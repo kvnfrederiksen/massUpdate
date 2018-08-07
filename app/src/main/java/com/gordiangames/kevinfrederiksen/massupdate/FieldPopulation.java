@@ -29,7 +29,7 @@ import javax.xml.transform.Source;
  *
  * Class that is responsible for the population of fields and potential values that will be used in the update
  */
-public class FieldPopulation {
+public class FieldPopulation {//start class
 
     private String restUrl;
     private String token;
@@ -41,219 +41,295 @@ public class FieldPopulation {
     private boolean append = false;
     private boolean selection = false;
     private List<String> fieldList = new ArrayList<>();
-    private HashMap<String, String> fieldTypeMap = new HashMap<String, String>();
-    private HashMap<String, String> fieldOptionsTypeMap = new HashMap<String, String>();
-    private HashMap<Integer, String> optionsMap = new HashMap<Integer, String>();
+    private HashMap<String, String> fieldTypeMap = new HashMap<>();
+    private HashMap<String, String> fieldOptionsTypeMap = new HashMap<>();
+    private HashMap<Integer, String> optionsMap = new HashMap<>();
     private final static RestTemplate restTemplate = createRestTemplate();
     Activity activity;
 
-    protected FieldPopulation(Activity activity){
-        this.activity=activity;
-    }
+    protected FieldPopulation(Activity activity) {//start constructor
 
-    protected void setFieldAdapter(String restUrl, String token, String entity){
+        this.activity = activity;
+
+    }//end constructor
+
+    protected void setFieldAdapter(String restUrl, String token, String entity) {//start setFieldAdapter
 
         setRestUrl(restUrl);
         setToken(token);
-        try{
-        StandardMetaData metaData = restTemplate.getForObject(restUrl +
-                        "meta/" + entity + "?fields=*&meta=full&BhRestToken=" + token,
-                StandardMetaData.class);
-        List<Field> fields = metaData.getFields();
 
-        //fieldList, fieldTypeMap, and fieldOptionsTypeMap are set as new before setFieldList is called to allow for Address fields to populate
-        //by recursion and still allow for a new list to generate should the user choose to select a different entity
-        fieldList = new ArrayList<>();
-        fieldTypeMap = new HashMap<String, String>();
-        fieldOptionsTypeMap = new HashMap<String, String>();
-        setFieldList(fields);
+        try {//start try
 
-        //adds the first value as a hint
-        fieldList.add(0, "Choose a field");
+            StandardMetaData metaData = restTemplate.getForObject(restUrl + "meta/" + entity + "?fields=*&meta=full&BhRestToken=" + token,
+                    StandardMetaData.class);
+            List<Field> fields = metaData.getFields();
 
-        //brute forces the state, country, and, for ClientContacts, desiredCategories and desiredSkills to populate as expected
-        fieldTypeMap.put("state","");
-        fieldTypeMap.put("countryID","");
-        fieldOptionsTypeMap.put("state", "State");
-        fieldOptionsTypeMap.put("countryId", "Country");
-        if(entity.equals("ClientContact")){
-            fieldTypeMap.put("desiredCategories","");fieldTypeMap.put("desiredSkills","");
-            fieldOptionsTypeMap.put("desiredCategories","Category");fieldOptionsTypeMap.put("desiredSkills","Skill");
-        }
-        this.entity = entity;
+            //fieldList, fieldTypeMap, and fieldOptionsTypeMap are set as new before setFieldList is called to allow for Address fields to
+            //populate by recursion and still allow for a new list to generate should the user choose to select a different entity
+            fieldList = new ArrayList<>();
+            fieldTypeMap = new HashMap<>();
+            fieldOptionsTypeMap = new HashMap<>();
+            setFieldList(fields);
+
+            //adds the first value as a hint
+            fieldList.add(0, "Choose a field");
+
+            //Assigns currently selected entity to the appropriate variable
+            setEntity(entity);
+
+        }//end try
 
         //allows for 400 and 500 errors without crashing the app
-        } catch( HttpClientErrorException e){
-            Toast.makeText
-                    (activity.getApplicationContext(), "Oops! Something's wrong-o, Bob-o!", Toast.LENGTH_LONG)
-                    .show();
-        }
+        catch(HttpClientErrorException e) {//start catch
 
-    }
+            Toast.makeText(activity.getApplicationContext(), "Oops! Something's wrong-o, Bob-o!", Toast.LENGTH_LONG).show();
 
-    private void setFieldList(List<Field> fields){
+        }//end catch
 
-        for(int i = 0; i < fields.size(); i++){
-            try{
+    }//end setFieldAdapter
+
+    private void setFieldList(List<Field> fields) {//start setFieldList
+
+        for(int i = 0; i < fields.size(); i++) {//start for
+
+            try {//start try
+
                 //retrieves all client-facing, unhidden fields
-                if(!(fields.get(i).getReadOnly())){
+                if(!(fields.get(i).getReadOnly())) {//start if1
+
                     //calls method recursively to easily pull component fields of composite types
-                    if(fields.get(i).getType().equals("COMPOSITE")){
+                    if(fields.get(i).getType().equals("COMPOSITE")) {//start if2
+
                         setFieldList(fields.get(i).getFields());
-                    }else{
+
+                    }//end if2
+
+                    else {//start else2
 
                         fieldList.add(fields.get(i).getName());
+
                         //if the meta data shows that the user would need to select from values, and has a TO_MANY or TO_ONE association,
-                        //stores that into fieldOptionsTypeMap to pull from when checking the options in the spinner2 listener
-                        if(fields.get(i).getInputType().equals("SELECT")&&(fields.get(i).getType().equals("TO_MANY")||
-                                fields.get(i).getType().equals("TO_ONE")))
+                        //stores that into fieldOptionsTypeMap to pull from when checking the options in the spinner2 listener, and sets the
+                        //fieldTypeMap to store the type for later calls
+                        if(!(fields.get(i).getOptionsType().equals(null))) {//start if3
+
                             fieldTypeMap.put(fields.get(i).getName(), fields.get(i).getType());
                             fieldOptionsTypeMap.put(fields.get(i).getName(), fields.get(i).getOptionsType());
 
-                    }
+                        }//end if3
 
-                }
+                    }//end else2
 
-            }catch(NullPointerException e){}
-        }
-    }
+                }//end if1
 
-    protected void setOptionsList(String optionType, String field){
-        try{
-        this.field = field;
-        List<String> optionList = new ArrayList<>();
-        HashMap<Integer, String> optionsMap = new HashMap<Integer, String>();
-        optionList.add("Choose an option");
+            }//end try
 
-        //No class existed to pull options effectively in JSON format, so I pulled the data as a String and matched the pattern instead
-        String options = null;
-        Pattern p = Pattern.compile("value(\"\\:)(.*?)(\\,\")label(\"\\:\")(.*?)(\"\\})");
-        Pattern space = Pattern.compile("\\s");
-        int start = 0;
-        boolean count = true;
+            catch(NullPointerException e) {//start catch
 
-        do{
-            options = restTemplate.getForObject(restUrl + "/options/"+optionType+
-                    "?start="+start+"&count=300&BhRestToken="+token, String.class);
-            Matcher m = space.matcher(options);
-            options = m.replaceAll("");
-            System.out.println(options);
-            m = p.matcher(options);
-            while(m.find()){
+            }//end catch
 
-                optionsMap.put(Integer.parseInt(m.group(2)), m.group(5));
+        }//end for
 
-            }
+    }//end setFieldList
 
-            if(!(optionsMap.size()%300==0)){
-                count=false;
-            }
-            else start +=300;
+    protected void setOptionsList(String optionType, String field) {//start setOptionsList
 
-        }while(count);
+        try {//start try
 
-        this.optionsMap = new HashMap<Integer, String>();
-        this.optionsMap = optionsMap;} catch( HttpClientErrorException e){
-        Toast.makeText
-                (activity.getApplicationContext(), "Oops! Something's wrong-o, Bob-o!", Toast.LENGTH_LONG)
-                .show();
-    }
+            setField(field);
+            List<String> optionList = new ArrayList<>();
+            HashMap<Integer, String> optionsMap = new HashMap<>();
+            optionList.add("Choose an option");
 
-    }
+            //No class existed to pull options effectively in JSON format, so I pulled the data as a String and matched the pattern instead
+            String options = null;
+            Pattern p = Pattern.compile("value(\"\\:)(.*?)(\\,\")label(\"\\:\")(.*?)(\"\\})");
+            Pattern space = Pattern.compile("\\s");
+            int start = 0;
+            boolean count = true;
 
-    protected HashMap<String, String> getFieldTypeMap(){
-        return fieldTypeMap;
-    }
+            do {//start do/while
 
-    protected int getiValue(){
-        return iValue;
-    }
+                options = restTemplate.getForObject(restUrl + "/options/"+optionType+ "?start="+start+"&count=300&BhRestToken="+token,
+                        String.class);
+                Matcher m = space.matcher(options);
+                options = m.replaceAll("");
+                System.out.println(options);
+                m = p.matcher(options);
 
-    protected HashMap<Integer, String> getOptionsMap(){
-        return optionsMap;
-    }
+                while(m.find()) {//start while2
 
-    protected HashMap<String, String> getFieldOptionsTypeMap(){
-        return fieldOptionsTypeMap;
-    }
+                    optionsMap.put(Integer.parseInt(m.group(2)), m.group(5));
 
-    protected void setQuery(String query){
-        this.query = query;
-    }
+                }//end while2
 
-    protected void setiValue(int iValue){
-        this.iValue = iValue;
-    }
+                if(!(optionsMap.size()%300==0)) {//start if2
 
-    protected void setAppend(){
-        append = !append;
-    }
+                    count=false;
 
-    protected void setValue(String value){
-        this.value = value;
-    }
+                }//end if2
 
-    protected void setSelection(boolean b){
-        selection = b;
-    }
+                else {//start else2
 
-    protected List<String> getFieldList(){
-        return fieldList;
-    }
+                    start += 300;
 
-    protected String getQuery(){
-        return query;
-    }
+                }//end else2
 
-    protected String getField(){
-        return field;
-    }
+            } while(count); //end do/while
 
-    protected void setField(String field){
-        this.field = field;
-    }
+            this.optionsMap = new HashMap<>();
+            this.optionsMap = optionsMap;
 
-    protected boolean getSelection(){
-        return selection;
-    }
+        }//end try
 
-    private void setRestUrl(String url){
+        catch(HttpClientErrorException e) {//start catch
 
-        restUrl = url;
+        Toast.makeText(activity.getApplicationContext(), "Oops! Something's wrong-o, Bob-o!", Toast.LENGTH_LONG).show();
 
-    }
+        }//end catch
 
-    private void setToken(String token){
+    }//end setOptionsList
+
+    protected String getRestUrl() {//start getRestUrl
+
+        return restUrl;
+
+    }//end getRestUrl
+
+    private void setRestUrl(String restUrl) {//start setRestUrl
+
+        this.restUrl = restUrl;
+
+    }//end setRestUrl
+
+    protected String getToken() {//start getToken
+
+        return token;
+
+    }//end getToken
+
+    private void setToken(String token) {//start setToken
 
         this.token = token;
 
-    }
+    }//end setToken
 
-    protected String getRestUrl(){
-        return restUrl;
-    }
+    protected String getEntity() {//start getEntity
 
-    protected String getToken(){
-        return token;
-    }
-
-    protected boolean getAppend(){
-        return append;
-    }
-
-    protected RestTemplate getRestTemplate(){
-        return restTemplate;
-    }
-
-    protected String getValue(){
-        return value;
-    }
-
-    protected String getEntity(){
         return entity;
-    }
 
-    private static RestTemplate createRestTemplate() {
+    }//end getEntity
+
+    private void setEntity(String entity) {//start setEntity
+
+        this.entity = entity;
+
+    }//end set Entity
+
+    protected String getField() {//start getField
+
+        return field;
+
+    }//end getField
+
+    protected void setField(String field) {//start setField
+
+        this.field = field;
+
+    }//end setField
+
+    protected String getQuery() {//start getQuery
+
+        return query;
+
+    }//end getQuery
+
+    protected void setQuery(String query) {//start setQuery
+
+        this.query = query;
+
+    }//end setQuery
+
+    protected String getValue() {//start getValue
+
+        return value;
+
+    }//end getValue
+
+    protected void setValue(String value) {//start setValue
+
+        this.value = value;
+
+    }//end setValue
+
+    protected int getiValue() {//start getiValue
+
+        return iValue;
+
+    }//end getiValue
+
+    protected void setiValue(int iValue) {//start setiValue
+
+        this.iValue = iValue;
+
+    }//end setiValue
+
+    protected boolean getAppend() {//start getAppend
+
+        return append;
+
+    }//end getAppend
+
+    protected void setAppend() {//start setAppend
+
+        append = !append;
+
+    }//end setAppend
+
+    protected boolean getSelection() {//start getSelection
+
+        return selection;
+
+    }//end getSelection
+
+    protected void setSelection(boolean selection) {//start setSelection
+
+        this.selection = selection;
+
+    }//end setSelection
+
+    protected HashMap<String, String> getFieldTypeMap() {//start getFieldTypeMap
+
+        return fieldTypeMap;
+
+    }//end getFieldTypeMap
+
+    protected HashMap<Integer, String> getOptionsMap() {//start getOptionsMap
+
+        return optionsMap;
+
+    }//end getOptionsMap
+
+    protected HashMap<String, String> getFieldOptionsTypeMap() {//start getFieldOptionsTypeMap
+
+        return fieldOptionsTypeMap;
+
+    }//end getFieldOptionsTypeMap
+
+    protected List<String> getFieldList() {//start getFieldList
+
+        return fieldList;
+
+    }//end getFieldList
+
+    protected RestTemplate getRestTemplate() {//start getRestTemplate
+
+        return restTemplate;
+
+    }//end getRestTemplate
+
+    private static RestTemplate createRestTemplate() {//start createRestTemplate
+
         List<HttpMessageConverter<?>> messageConverters = new ArrayList<HttpMessageConverter<?>>();
         messageConverters.add(new ByteArrayHttpMessageConverter());
         messageConverters.add(new StringHttpMessageConverter(Charset.forName("UTF-8")));
@@ -262,6 +338,7 @@ public class FieldPopulation {
         messageConverters.add(new MappingJackson2HttpMessageConverter());
 
         return new RestTemplate(messageConverters);
-    }
 
-}
+    }//end createRestTemplate
+
+}//end class
